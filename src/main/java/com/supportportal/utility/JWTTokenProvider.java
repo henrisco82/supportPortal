@@ -6,6 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.supportportal.constant.SecurityConstant;
 import com.supportportal.domain.UserPrincipal;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Arrays.stream;
 
+@Slf4j
 @Component
 public class JWTTokenProvider {
 
@@ -55,11 +57,12 @@ public class JWTTokenProvider {
 
     public boolean isTokenValid(String username, String token){
         JWTVerifier verifier = getJWTVerifier();
-        return StringUtils.isNotEmpty(username) && isTokenExpired(verifier, token);
+        return StringUtils.isNotEmpty(username) && !isTokenExpired(verifier, token);
     }
 
     public String getSubject(String token){
         JWTVerifier verifier = getJWTVerifier();
+        log.info(token);
         return verifier.verify(token).getSubject();
     }
 
