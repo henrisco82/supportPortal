@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: support-portal-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: postgres
+      - key: PORT
+        value: 8081
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: support-portal-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: support-portal-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: support-portal-db
+          property: password
+
+databases:
+  - name: support-portal-db
+    databaseName: supportportal
+    user: supportportal_user
+    plan: free
+
+healthCheckPath: /actuator/health
+disk:
+  name: user-uploads
+  mountPath: /app/uploads
+  sizeGB: 1

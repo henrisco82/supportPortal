@@ -20,9 +20,12 @@ A comprehensive user management and authentication system built with Spring Boot
 - **Spring Boot**: 2.7.18
 - **Spring Security**: JWT-based authentication
 - **Spring Data JPA**: Database operations
-- **Database**: H2 (development), MySQL (production)
+- **Database**: H2 (development), PostgreSQL (production)
+- **Profiles**: Spring profiles for environment switching
 - **Email**: JavaMail API
 - **Documentation**: SpringDoc OpenAPI (Swagger)
+- **Containerization**: Docker support
+- **Deployment**: Render cloud platform
 - **Build Tool**: Maven
 - **Other Libraries**:
   - Auth0 JWT: Token generation and validation
@@ -52,30 +55,68 @@ cd supportPortal
 
 ### 3. Run the Application
 ```bash
+# Run with H2 database (default for local development)
 ./mvnw spring-boot:run
+
+# Or run with PostgreSQL profile
+./mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
 The application will start on `http://localhost:8081`
 
+### 4. Environment Variables (Optional)
+Configure these environment variables for customization:
+
+```bash
+# Application
+export PORT=8081
+export SPRING_PROFILES_ACTIVE=h2  # or 'postgres'
+
+# JWT
+export JWT_SECRET=your_secure_jwt_secret_here
+
+# Email (for password reset functionality)
+export EMAIL_USERNAME=your-email@gmail.com
+export EMAIL_PASSWORD=your-app-password
+```
+
 ## ⚙️ Configuration
 
+The application uses Spring profiles to switch between different environments:
+
+### Default Profile
+- **Default**: `h2` (local testing)
+- **Production**: `postgres`
+
 ### Development (H2 Database)
-The application is pre-configured to use H2 in-memory database for development:
+The application defaults to H2 for local development:
+```bash
+# Run with H2 (default)
+./mvnw spring-boot:run
+
+# Or explicitly specify
+./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
+```
+
+H2 Console access:
 - **URL**: `http://localhost:8081/h2-console`
 - **JDBC URL**: `jdbc:h2:mem:testdb`
 - **Username**: `sa`
 - **Password**: (empty)
 
-### Production (MySQL Database)
-For production, update `application.properties`:
-```properties
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.datasource.url=jdbc:mysql://localhost:3306/supportportal?createDatabaseIfNotExist=true
-spring.datasource.username=your_username
-spring.datasource.password=your_password
+### Production (PostgreSQL Database)
+For production with PostgreSQL:
+```bash
+# Run with PostgreSQL profile
+./mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
+```
 
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+Environment variables for PostgreSQL:
+```bash
+export DATABASE_URL=jdbc:postgresql://localhost:5432/supportportal
+export DB_USERNAME=your_username
+export DB_PASSWORD=your_password
+export JWT_SECRET=your_jwt_secret
 ```
 
 ## 📚 API Documentation
@@ -166,6 +207,13 @@ Run the tests using Maven:
 
 ## 🚀 Deployment
 
+### Local Development with Docker Compose
+For local testing with PostgreSQL:
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
 ### JAR File
 Build a production JAR:
 ```bash
@@ -174,18 +222,46 @@ Build a production JAR:
 
 Run the JAR:
 ```bash
+# With H2 (default)
 java -jar target/SupportPortalApp-0.0.1-SNAPSHOT.jar
+
+# With PostgreSQL
+java -jar target/SupportPortalApp-0.0.1-SNAPSHOT.jar --spring.profiles.active=postgres
 ```
 
-### Docker (Optional)
-Create a Dockerfile for containerization:
+### Docker Deployment
+Build and run with Docker:
+```bash
+# Build the image
+docker build -t support-portal .
 
-```dockerfile
-FROM openjdk:17-jdk-slim
-COPY target/*.jar app.jar
-EXPOSE 8081
-ENTRYPOINT ["java","-jar","/app.jar"]
+# Run with H2
+docker run -p 8081:8081 support-portal
+
+# Run with PostgreSQL (set environment variables)
+docker run -p 8081:8081 \
+  -e SPRING_PROFILES_ACTIVE=postgres \
+  -e DATABASE_URL=jdbc:postgresql://host:5432/supportportal \
+  -e DB_USERNAME=user \
+  -e DB_PASSWORD=password \
+  -e JWT_SECRET=your_secret \
+  support-portal
 ```
+
+### Render Deployment
+Deploy to Render using the provided configuration:
+
+1. **Connect Repository**: Link your GitHub repository to Render
+2. **Auto-deployment**: Render will automatically build and deploy using `render.yaml`
+3. **Database**: PostgreSQL database will be automatically provisioned
+4. **Environment Variables**: Configure additional secrets as needed
+
+The `render.yaml` file includes:
+- Web service configuration with Docker
+- PostgreSQL database setup
+- Environment variables configuration
+- Health check endpoint
+- Persistent disk for file uploads
 
 ## 🔒 Security Features
 

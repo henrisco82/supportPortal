@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=postgres
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/supportportal
+      - DB_USERNAME=supportportal
+      - DB_PASSWORD=supportportal123
+      - JWT_SECRET=khdsaklaedhfleaeiowoihfwioh
+    depends_on:
+      - postgres
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - supportportal-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=supportportal
+      - POSTGRES_USER=supportportal
+      - POSTGRES_PASSWORD=supportportal123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - supportportal-network
+
+volumes:
+  postgres_data:
+
+networks:
+  supportportal-network:
+    driver: bridge
