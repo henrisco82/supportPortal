@@ -48,8 +48,28 @@ git clone <repository-url>
 cd supportPortal
 ```
 
-### 2. Build the Application
+### 2. Quick Setup (Recommended)
 ```bash
+# Run the automated setup script
+./setup.sh
+```
+
+This script will:
+- Create your `.env` file from the template
+- Build the application
+- Provide helpful next steps
+
+### 2. Manual Setup
+If you prefer manual setup:
+
+```bash
+# Copy environment template
+cp env.example .env
+
+# Edit with your values
+nano .env
+
+# Build the application
 ./mvnw clean install
 ```
 
@@ -64,9 +84,10 @@ cd supportPortal
 
 The application will start on `http://localhost:8081`
 
-### 4. Environment Variables (Optional)
+### 4. Environment Variables
 Configure these environment variables for customization:
 
+#### Application Configuration
 ```bash
 # Application
 export PORT=8081
@@ -79,6 +100,27 @@ export JWT_SECRET=your_secure_jwt_secret_here
 export EMAIL_USERNAME=your-email@gmail.com
 export EMAIL_PASSWORD=your-app-password
 ```
+
+#### Docker Compose Environment File
+For Docker Compose development, create a `.env` file from the template:
+
+```bash
+cp env.example .env
+# Edit .env with your values
+```
+
+The `.env` file is gitignored and should never be committed to version control.
+
+#### Production Environment Variables
+When deploying to production platforms like Render, set these environment variables:
+
+- `SPRING_PROFILES_ACTIVE=postgres`
+- `DATABASE_URL` - Your production database URL
+- `DB_USERNAME` - Database username
+- `DB_PASSWORD` - Database password
+- `JWT_SECRET` - Secure JWT signing secret
+- `EMAIL_USERNAME` - SMTP username (optional)
+- `EMAIL_PASSWORD` - SMTP password (optional)
 
 ## ⚙️ Configuration
 
@@ -209,10 +251,19 @@ Run the tests using Maven:
 
 ### Local Development with Docker Compose
 For local testing with PostgreSQL:
+
 ```bash
-# Build and run with Docker Compose
+# 1. Copy the environment template
+cp env.example .env
+
+# 2. Edit .env file with your own values
+nano .env  # or your preferred editor
+
+# 3. Build and run with Docker Compose
 docker-compose up --build
 ```
+
+**Note:** The `.env` file contains sensitive information and is gitignored. Never commit it to the repository.
 
 ### JAR File
 Build a production JAR:
@@ -271,16 +322,34 @@ The `render.yaml` file includes:
 - **Request Filtering**: Custom security filters
 - **Login Attempt Tracking**: Prevent brute force attacks
 - **Role-based Authorization**: Method-level security
+- **Environment Variables**: Sensitive data stored in environment variables, not in code
+- **Gitignored Secrets**: `.env` files are excluded from version control
+
+### 🔐 Security Best Practices
+
+- **Never commit secrets**: Use environment variables for sensitive data
+- **Use strong passwords**: Generate secure passwords for databases and JWT secrets
+- **Environment isolation**: Different secrets for development, staging, and production
+- **Regular rotation**: Rotate secrets periodically
+- **Access control**: Limit access to environment variables in production
 
 ## 📧 Email Configuration
 
-For email functionality, configure the following properties in `application.properties`:
+For email functionality (password reset), configure the following environment variables:
+
+```bash
+# Required for email functionality
+EMAIL_USERNAME=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+```
+
+Or configure in `application.properties`:
 
 ```properties
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
-spring.mail.username=your-email@gmail.com
-spring.mail.password=your-app-password
+spring.mail.username=${EMAIL_USERNAME}
+spring.mail.password=${EMAIL_PASSWORD}
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 ```
