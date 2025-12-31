@@ -29,7 +29,7 @@ databases:
     user: supportportal_user
     plan: free
 
-healthCheckPath: /actuator/health
+healthCheckPath: /
 disk:
   name: user-uploads
   mountPath: /app/uploads
