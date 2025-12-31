@@ -7,6 +7,14 @@ import com.supportportal.domain.UserPrincipal;
 import com.supportportal.exception.domain.*;
 import com.supportportal.service.UserService;
 import com.supportportal.utility.JWTTokenProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,6 +39,8 @@ import static org.springframework.util.MimeTypeUtils.IMAGE_JPEG_VALUE;
 
 @RestController
 @RequestMapping(value="/user")
+@Tag(name = "User Management", description = "APIs for managing users, authentication, and user profiles")
+@SecurityRequirement(name = "bearerAuth")
 public class UserResource extends ExceptionHandling {
 
     public static final String EMAIL_SENT = " An email with a new password was sent to: ";
@@ -46,68 +56,129 @@ public class UserResource extends ExceptionHandling {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<User> login(@RequestBody  User user)  {
-        authenticate(user.getUsername(), user.getPassword());
-        User loginUser = userService.findUserByUsername(user.getUsername());
+    @PostMapping(value = "/login", consumes = "multipart/form-data")
+    @Operation(summary = "User login", description = "Authenticate user with username and password")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login successful",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid credentials",
+                    content = @Content)
+    })
+    public ResponseEntity<User> login(
+            @Parameter(description = "Username") @RequestParam("username") String username,
+            @Parameter(description = "Password") @RequestParam("password") String password) {
+        authenticate(username, password);
+        User loginUser = userService.findUserByUsername(username);
         UserPrincipal userPrincipal = new UserPrincipal(loginUser);
         HttpHeaders jwtHeader = getJwtHeader(userPrincipal);
         return new ResponseEntity<>(loginUser, jwtHeader, HttpStatus.OK);
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody  User user) throws UserNotFoundException, UsernameExistException, EmailExistException, MessagingException {
-       User newUser = userService.register(user.getFirstName(), user.getLastName(), user.getUsername(), user.getEmail());
+    @PostMapping(value = "/register", consumes = "multipart/form-data")
+    @Operation(summary = "Register new user", description = "Register a new user account")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User registered successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "400", description = "Username or email already exists",
+                    content = @Content)
+    })
+    public ResponseEntity<User> register(
+            @Parameter(description = "First name") @RequestParam("firstName") String firstName,
+            @Parameter(description = "Last name") @RequestParam("lastName") String lastName,
+            @Parameter(description = "Username") @RequestParam("username") String username,
+            @Parameter(description = "Email address") @RequestParam("email") String email
+    ) throws UserNotFoundException, UsernameExistException, EmailExistException, MessagingException {
+       User newUser = userService.register(firstName, lastName, username, email);
        return new ResponseEntity<>(newUser, HttpStatus.OK);
     }
 
-    @PostMapping("/add")
-    public ResponseEntity<User> addNewUser (
-            @RequestParam("firstName") String firstName,
-            @RequestParam("lastName") String lastName,
-            @RequestParam("username") String username,
-            @RequestParam("email") String email,
-            @RequestParam("role") String role,
-            @RequestParam("isActive") String isActive,
-            @RequestParam("isNonLocked") String isNonLocked,
-            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage
-    )throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
+    @PostMapping(value = "/add", consumes = "multipart/form-data")
+    @Operation(summary = "Add new user", description = "Create a new user account (Admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User created successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "400", description = "Username or email already exists",
+                    content = @Content)
+    })
+    public ResponseEntity<User> addNewUser(
+            @Parameter(description = "User's first name") @RequestParam("firstName") String firstName,
+            @Parameter(description = "User's last name") @RequestParam("lastName") String lastName,
+            @Parameter(description = "Username") @RequestParam("username") String username,
+            @Parameter(description = "Email address") @RequestParam("email") String email,
+            @Parameter(description = "User role") @RequestParam("role") String role,
+            @Parameter(description = "Account active status") @RequestParam("isActive") String isActive,
+            @Parameter(description = "Account locked status") @RequestParam("isNonLocked") String isNonLocked,
+            @Parameter(description = "Profile image file") @RequestParam(value = "profileImage", required = false) MultipartFile profileImage
+    ) throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
         User newUser = userService.addNewUser(firstName, lastName, username, email, role, Boolean.parseBoolean(isNonLocked), Boolean.parseBoolean(isActive), profileImage);
         return new ResponseEntity<>(newUser, HttpStatus.OK);
     }
 
-    @PostMapping("/update")
-    public ResponseEntity<User> updateUser (
-            @RequestParam("currentUsername") String currentUsername,
-            @RequestParam("firstName") String firstName,
-            @RequestParam("lastName") String lastName,
-            @RequestParam("username") String username,
-            @RequestParam("email") String email,
-            @RequestParam("role") String role,
-            @RequestParam("isActive") String isActive,
-            @RequestParam("isNonLocked") String isNonLocked,
-            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage
-    )throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
+    @PostMapping(value = "/update", consumes = "multipart/form-data")
+    @Operation(summary = "Update user", description = "Update an existing user's information")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User updated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content),
+            @ApiResponse(responseCode = "400", description = "Username or email already exists",
+                    content = @Content)
+    })
+    public ResponseEntity<User> updateUser(
+            @Parameter(description = "Current username") @RequestParam("currentUsername") String currentUsername,
+            @Parameter(description = "Updated first name") @RequestParam("firstName") String firstName,
+            @Parameter(description = "Updated last name") @RequestParam("lastName") String lastName,
+            @Parameter(description = "Updated username") @RequestParam("username") String username,
+            @Parameter(description = "Updated email address") @RequestParam("email") String email,
+            @Parameter(description = "Updated user role") @RequestParam("role") String role,
+            @Parameter(description = "Updated active status") @RequestParam("isActive") String isActive,
+            @Parameter(description = "Updated locked status") @RequestParam("isNonLocked") String isNonLocked,
+            @Parameter(description = "Updated profile image") @RequestParam(value = "profileImage", required = false) MultipartFile profileImage
+    ) throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
         User updatedUser = userService.updateUser(currentUsername, firstName, lastName, username, email, role, Boolean.parseBoolean(isNonLocked), Boolean.parseBoolean(isActive), profileImage);
         return new ResponseEntity<>(updatedUser, HttpStatus.OK);
     }
 
-    @PostMapping("/updateProfileImage")
-    public ResponseEntity<User> updateProfileImage (
-            @RequestParam("username") String username,
-            @RequestParam(value = "profileImage") MultipartFile profileImage
+    @PostMapping(value = "/updateProfileImage", consumes = "multipart/form-data")
+    @Operation(summary = "Update profile image", description = "Update user's profile image")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profile image updated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content)
+    })
+    public ResponseEntity<User> updateProfileImage(
+            @Parameter(description = "Username") @RequestParam("username") String username,
+            @Parameter(description = "Profile image file") @RequestParam(value = "profileImage") MultipartFile profileImage
     ) throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
         User user = userService.updateProfileImage(username, profileImage);
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
     @GetMapping(path="/image/{username}/{filename}", produces = IMAGE_JPEG_VALUE)
-    public byte[] getProfileImage(@PathVariable("username") String username, @PathVariable("filename") String filename) throws IOException {
+    @Operation(summary = "Get profile image", description = "Retrieve user's profile image by username and filename")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Image retrieved successfully",
+                    content = @Content(mediaType = "image/jpeg")),
+            @ApiResponse(responseCode = "404", description = "Image not found",
+                    content = @Content)
+    })
+    public byte[] getProfileImage(
+            @Parameter(description = "Username") @PathVariable("username") String username,
+            @Parameter(description = "Image filename") @PathVariable("filename") String filename
+    ) throws IOException {
         return Files.readAllBytes(Paths.get(USER_FOLDER + username + FORWARD_SLASH + filename));
     }
 
     @GetMapping(path="/image/profile/{username}", produces = IMAGE_JPEG_VALUE)
-    public byte[] getTempProfileImage(@PathVariable("username") String username) throws IOException {
+    @Operation(summary = "Get temporary profile image", description = "Retrieve user's temporary profile image")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Image retrieved successfully",
+                    content = @Content(mediaType = "image/jpeg")),
+            @ApiResponse(responseCode = "404", description = "Image not found",
+                    content = @Content)
+    })
+    public byte[] getTempProfileImage(@Parameter(description = "Username") @PathVariable("username") String username) throws IOException {
         URL url = new URL(TEMP_PROFILE_IMAGE_BASE_URL + username);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try(InputStream inputStream = url.openStream()){
@@ -122,26 +193,54 @@ public class UserResource extends ExceptionHandling {
     }
 
     @GetMapping("/find/{username}")
-    public ResponseEntity<User> getUser(@PathVariable("username") String username){
+    @Operation(summary = "Find user by username", description = "Retrieve user information by username")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User found",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content)
+    })
+    public ResponseEntity<User> getUser(@Parameter(description = "Username to search") @PathVariable("username") String username) {
         User user = userService.findUserByUsername(username);
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
     @GetMapping("/list")
-    public ResponseEntity<List<User>> getAllUsers(){
+    @Operation(summary = "List all users", description = "Retrieve a list of all users")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Users retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class)))
+    })
+    public ResponseEntity<List<User>> getAllUsers() {
         List<User> users = userService.getUsers();
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     @GetMapping("/resetPassword/{email}")
-    public ResponseEntity<HttpResponse> resetPassword(@PathVariable("email") String email) throws EmailNotFoundException {
+    @Operation(summary = "Reset password", description = "Send password reset email to user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password reset email sent successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = HttpResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Email not found",
+                    content = @Content)
+    })
+    public ResponseEntity<HttpResponse> resetPassword(@Parameter(description = "User's email address") @PathVariable("email") String email) throws EmailNotFoundException {
         userService.resetPassword(email);
         return response(HttpStatus.OK, EMAIL_SENT + email);
     }
 
     @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasAnyAuthority('user:delete')")
-    public ResponseEntity<HttpResponse> deleteUser(@PathVariable("id") long id){
+    @Operation(summary = "Delete user", description = "Delete a user account (Admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "User deleted successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = HttpResponse.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content),
+            @ApiResponse(responseCode = "403", description = "Access denied",
+                    content = @Content)
+    })
+    public ResponseEntity<HttpResponse> deleteUser(@Parameter(description = "User ID") @PathVariable("id") long id) {
         userService.deleteUser(id);
         return response(HttpStatus.NO_CONTENT, USER_DELETED_SUCCESSFULLY);
     }
