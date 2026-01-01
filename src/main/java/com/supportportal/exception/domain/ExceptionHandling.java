@@ -3,6 +3,7 @@ package com.supportportal.exception.domain;
 
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.supportportal.domain.HttpResponse;
+import com.supportportal.exception.domain.UserNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
@@ -67,6 +68,11 @@ public class ExceptionHandling{
     @ExceptionHandler(UsernameExistException.class)
     public ResponseEntity<HttpResponse> usernameExistException(UsernameExistException exception){
         return createHttpResponse(HttpStatus.BAD_REQUEST, exception.getMessage().toUpperCase());
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<HttpResponse> userNotFoundException(UserNotFoundException exception){
+        return createHttpResponse(HttpStatus.NOT_FOUND, exception.getMessage().toUpperCase());
     }
 
     @ExceptionHandler(EmailNotFoundException.class)

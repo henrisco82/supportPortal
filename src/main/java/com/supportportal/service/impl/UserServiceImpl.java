@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -179,8 +180,31 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     }
 
     @Override
-    public void deleteUser(long id) {
-        userRepository.deleteById(id);
+    public void deleteUser(String username) throws UserNotFoundException {
+        // Check if user exists
+        User userToDelete = userRepository.findUserByUsername(username);
+        if (userToDelete == null) {
+            throw new UserNotFoundException("User not found with username: " + username);
+        }
+
+        // Prevent deleting the super admin user
+        if ("supportPortal".equals(userToDelete.getUsername())) {
+            throw new UserNotFoundException("Cannot delete super admin user");
+        }
+
+        // Prevent users from deleting themselves (get current user from security context)
+        try {
+            String currentUsername = getCurrentUsername();
+            if (currentUsername != null && currentUsername.equals(userToDelete.getUsername())) {
+                throw new UserNotFoundException("Users cannot delete their own account");
+            }
+        } catch (Exception e) {
+            // If we can't get current user, continue with deletion (for admin operations)
+            LOGGER.warn("Could not determine current user context for delete operation");
+        }
+
+        userRepository.delete(userToDelete);
+        LOGGER.info("User deleted successfully: {}", userToDelete.getUsername());
     }
 
     @Override
@@ -273,5 +297,18 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         }
     }
 
+    private String getCurrentUsername() {
+        try {
+            Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            if (principal instanceof UserDetails) {
+                return ((UserDetails) principal).getUsername();
+            } else if (principal instanceof String) {
+                return (String) principal;
+            }
+        } catch (Exception e) {
+            // Return null if we can't get the current user
+        }
+        return null;
+    }
 
 }

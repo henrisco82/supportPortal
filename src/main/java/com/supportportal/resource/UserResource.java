@@ -236,9 +236,9 @@ public class UserResource extends ExceptionHandling {
         return response(HttpStatus.OK, EMAIL_SENT + email);
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/delete/{username}")
     @PreAuthorize("hasAnyAuthority('user:delete')")
-    @Operation(summary = "Delete user", description = "Delete a user account (Admin only)")
+    @Operation(summary = "Delete user", description = "Delete a user account by username (Admin only)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "User deleted successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = HttpResponse.class))),
@@ -247,8 +247,8 @@ public class UserResource extends ExceptionHandling {
             @ApiResponse(responseCode = "403", description = "Access denied",
                     content = @Content)
     })
-    public ResponseEntity<HttpResponse> deleteUser(@Parameter(description = "User ID") @PathVariable("id") long id) {
-        userService.deleteUser(id);
+    public ResponseEntity<HttpResponse> deleteUser(@Parameter(description = "Username") @PathVariable("username") String username) throws UserNotFoundException {
+        userService.deleteUser(username);
         return response(HttpStatus.NO_CONTENT, USER_DELETED_SUCCESSFULLY);
     }
 

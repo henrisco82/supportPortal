@@ -247,12 +247,31 @@ Content-Type: application/json
 
 **Note:** The API uses dedicated DTOs (`LoginRequest`, `RegisterRequest`) instead of the full `User` entity for better API design and documentation.
 
+### 🆔 User ID Types
+
+The `User` entity has two ID fields:
+
+- **`id`**: Primary key (Long, auto-generated) - Internal database identifier
+- **`userId`**: Business identifier (String) - Display ID, UUID for seeded users, numeric for created users
+
+**Delete operations use `username`**, while other operations may use either depending on context.
+
 ### 📋 DTOs Overview
 
 - **`LoginRequest`**: Contains only `username` and `password` fields for authentication
 - **`RegisterRequest`**: Contains `firstName`, `lastName`, `username`, and `email` for user registration
 - **Validation**: Both DTOs include validation annotations for required fields
 - **Swagger**: API documentation shows clean, focused request examples
+
+### 🗑️ Delete User Restrictions
+
+The delete user endpoint includes the following business rules:
+
+- **User Existence**: Validates that the user exists before deletion
+- **Super Admin Protection**: Cannot delete the `supportPortal` super admin user
+- **Self-Deletion Prevention**: Users cannot delete their own accounts
+- **Admin Authority**: Requires `user:delete` authority (Super Admin only)
+- **Parameter**: Accepts `username` (String) to identify the user to delete
 
 ### 🌐 CORS Configuration
 
