@@ -59,6 +59,19 @@ This script will:
 - Build the application
 - Provide helpful next steps
 
+### 3. Default Super Admin Account
+When you first start the application, a **Super Admin** user is automatically created:
+
+- **Username:** `supportPortal`
+- **Password:** `supportPortal`
+- **Role:** SUPER_ADMIN (full access to all features)
+- **Email:** `admin@supportportal.com`
+
+**⚠️ Security Notice:** Change the default password after first login!
+
+### 4. CORS Configuration
+✅ **CORS is pre-configured** to allow your Angular frontend on `localhost:4200`
+
 ### 2. Manual Setup
 If you prefer manual setup:
 
@@ -204,6 +217,73 @@ Authorization: Bearer <your-jwt-token>
 ### Password Management
 - `GET /user/resetPassword/{email}` - Reset password via email
 
+## 📨 API Data Format
+
+The authentication endpoints use **dedicated DTOs** for clean API contracts:
+
+### Login Request (`LoginRequest`)
+```json
+POST /user/login
+Content-Type: application/json
+
+{
+  "username": "your_username",
+  "password": "your_password"
+}
+```
+
+### Register Request (`RegisterRequest`)
+```json
+POST /user/register
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "username": "johndoe",
+  "email": "john@example.com"
+}
+```
+
+**Note:** The API uses dedicated DTOs (`LoginRequest`, `RegisterRequest`) instead of the full `User` entity for better API design and documentation.
+
+### 📋 DTOs Overview
+
+- **`LoginRequest`**: Contains only `username` and `password` fields for authentication
+- **`RegisterRequest`**: Contains `firstName`, `lastName`, `username`, and `email` for user registration
+- **Validation**: Both DTOs include validation annotations for required fields
+- **Swagger**: API documentation shows clean, focused request examples
+
+### 🌐 CORS Configuration
+
+The application is configured to allow cross-origin requests from:
+
+- **Development**: `http://localhost:4200` (Angular CLI default)
+- **Allowed Methods**: GET, POST, PUT, DELETE, OPTIONS, PATCH
+- **Credentials**: Enabled (for authentication cookies/tokens)
+- **Max Age**: 3600 seconds (1 hour)
+
+**Frontend Integration**: Your Angular app on port 4200 can now communicate with this API without CORS errors.
+
+### Response
+Both endpoints return the user object with JWT token in the response headers:
+```json
+{
+  "id": 1,
+  "userId": "uuid",
+  "firstName": "John",
+  "lastName": "Doe",
+  "username": "johndoe",
+  "email": "john@example.com",
+  // ... other user fields
+}
+```
+
+**Headers:**
+```
+Jwt-Token: Bearer <jwt_token>
+```
+
 ## 👥 User Roles
 
 ### ADMIN
@@ -223,12 +303,14 @@ src/main/java/com/supportportal/
 ├── configuration/          # Configuration classes
 │   ├── OpenApiConfig.java
 │   ├── SecurityConfiguration.java
-│   └── WebConfig.java
+│   └── WebConfig.java              # CORS & resource configuration
 ├── constant/               # Application constants
-├── domain/                 # Entity classes
+├── domain/                 # Entity classes & DTOs
 │   ├── User.java
 │   ├── UserPrincipal.java
-│   └── HttpResponse.java
+│   ├── HttpResponse.java
+│   ├── LoginRequest.java       # Login DTO
+│   └── RegisterRequest.java    # Registration DTO
 ├── enumeration/            # Enums
 │   └── Role.java
 ├── exception/              # Custom exceptions
@@ -238,6 +320,7 @@ src/main/java/com/supportportal/
 ├── resource/               # REST controllers
 ├── service/                # Business logic
 └── utility/                # Utility classes
+    └── DatabaseSeeder.java   # Auto-creates super admin user
 ```
 
 ## 🧪 Testing

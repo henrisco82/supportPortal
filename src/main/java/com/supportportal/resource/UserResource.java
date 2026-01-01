@@ -2,6 +2,8 @@ package com.supportportal.resource;
 
 import com.supportportal.constant.SecurityConstant;
 import com.supportportal.domain.HttpResponse;
+import com.supportportal.domain.LoginRequest;
+import com.supportportal.domain.RegisterRequest;
 import com.supportportal.domain.User;
 import com.supportportal.domain.UserPrincipal;
 import com.supportportal.exception.domain.*;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.mail.MessagingException;
+import javax.validation.Valid;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,7 +59,7 @@ public class UserResource extends ExceptionHandling {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    @PostMapping(value = "/login", consumes = "multipart/form-data")
+    @PostMapping(value = "/login", consumes = "application/json")
     @Operation(summary = "User login", description = "Authenticate user with username and password")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Login successful",
@@ -64,17 +67,20 @@ public class UserResource extends ExceptionHandling {
             @ApiResponse(responseCode = "401", description = "Invalid credentials",
                     content = @Content)
     })
-    public ResponseEntity<User> login(
-            @Parameter(description = "Username") @RequestParam("username") String username,
-            @Parameter(description = "Password") @RequestParam("password") String password) {
-        authenticate(username, password);
-        User loginUser = userService.findUserByUsername(username);
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "User credentials",
+        required = true,
+        content = @Content(schema = @Schema(implementation = LoginRequest.class))
+    )
+    public ResponseEntity<User> login(@RequestBody @Valid LoginRequest loginRequest) {
+        authenticate(loginRequest.getUsername(), loginRequest.getPassword());
+        User loginUser = userService.findUserByUsername(loginRequest.getUsername());
         UserPrincipal userPrincipal = new UserPrincipal(loginUser);
         HttpHeaders jwtHeader = getJwtHeader(userPrincipal);
         return new ResponseEntity<>(loginUser, jwtHeader, HttpStatus.OK);
     }
 
-    @PostMapping(value = "/register", consumes = "multipart/form-data")
+    @PostMapping(value = "/register", consumes = "application/json")
     @Operation(summary = "Register new user", description = "Register a new user account")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User registered successfully",
@@ -82,13 +88,14 @@ public class UserResource extends ExceptionHandling {
             @ApiResponse(responseCode = "400", description = "Username or email already exists",
                     content = @Content)
     })
-    public ResponseEntity<User> register(
-            @Parameter(description = "First name") @RequestParam("firstName") String firstName,
-            @Parameter(description = "Last name") @RequestParam("lastName") String lastName,
-            @Parameter(description = "Username") @RequestParam("username") String username,
-            @Parameter(description = "Email address") @RequestParam("email") String email
-    ) throws UserNotFoundException, UsernameExistException, EmailExistException, MessagingException {
-       User newUser = userService.register(firstName, lastName, username, email);
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "User registration data",
+        required = true,
+        content = @Content(schema = @Schema(implementation = RegisterRequest.class))
+    )
+    public ResponseEntity<User> register(@RequestBody @Valid RegisterRequest registerRequest) throws UserNotFoundException, UsernameExistException, EmailExistException, MessagingException {
+        User newUser = userService.register(registerRequest.getFirstName(), registerRequest.getLastName(),
+                                           registerRequest.getUsername(), registerRequest.getEmail());
        return new ResponseEntity<>(newUser, HttpStatus.OK);
     }
 
