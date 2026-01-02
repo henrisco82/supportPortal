@@ -273,6 +273,52 @@ The delete user endpoint includes the following business rules:
 - **Admin Authority**: Requires `user:delete` authority (Super Admin only)
 - **Parameter**: Accepts `username` (String) to identify the user to delete
 
+### 👥 Role-Based Access Control (RBAC)
+
+The application implements comprehensive role-based access control with specific permissions for each user role:
+
+#### Role Hierarchy & Permissions:
+
+| Role | Authorities | Read | Update | Create | Delete |
+|------|-------------|------|--------|--------|--------|
+| **USER** | `user:read` | ✅ Self only | ❌ | ❌ | ❌ |
+| **HR** | `user:read, user:update` | ✅ All users | ✅ Properties only | ❌ | ❌ |
+| **MANAGER** | `user:read, user:update` | ✅ All users | ✅ Properties only | ❌ | ❌ |
+| **ADMIN** | `user:read, user:update, user:create` | ✅ All users | ✅ With restrictions | ✅ Up to ADMIN | ❌ |
+| **SUPER_ADMIN** | `user:read, user:update, user:create, user:delete` | ✅ All users | ✅ No restrictions | ✅ Any role | ✅ |
+
+#### Detailed Permissions:
+
+##### **USER Role:**
+- **Read**: Can only view their own profile (`/user/list` returns only their record)
+- **Update**: ❌ Cannot update anything
+- **Create**: ❌ Cannot create users
+- **Delete**: ❌ Cannot delete users
+
+##### **HR & MANAGER Roles:**
+- **Read**: Can view all users (`/user/list` returns all users)
+- **Update**: Can update user properties (name, email, etc.) but **cannot change roles higher than their own**
+- **Create**: ❌ Cannot create users
+- **Delete**: ❌ Cannot delete users
+
+##### **ADMIN Role:**
+- **Read**: Can view all users
+- **Update**: Can update users but **cannot assign SUPER_ADMIN role**
+- **Create**: Can create users up to ADMIN level (cannot create SUPER_ADMIN)
+- **Delete**: ❌ Cannot delete users
+
+##### **SUPER_ADMIN Role:**
+- **Read**: Can view all users
+- **Update**: Can update any user to any role
+- **Create**: Can create users with any role
+- **Delete**: Can delete any user except themselves and other SUPER_ADMINs
+
+#### Business Rules:
+- **Self-Escalation Prevention**: Users cannot promote themselves to higher roles
+- **Role Assignment Limits**: Users cannot assign roles higher than their own (except SUPER_ADMIN)
+- **Super Admin Protection**: SUPER_ADMIN users cannot be deleted or demoted by ADMINs
+- **Audit Trail**: All operations are logged for security monitoring
+
 ### 🌐 CORS Configuration
 
 The application is configured to allow cross-origin requests from:
@@ -338,6 +384,8 @@ src/main/java/com/supportportal/
 ├── repository/             # Data repositories
 ├── resource/               # REST controllers
 ├── service/                # Business logic
+│   ├── UserService.java
+│   └── impl/UserServiceImpl.java    # Role validation & business logic
 └── utility/                # Utility classes
     └── DatabaseSeeder.java   # Auto-creates super admin user
 ```

@@ -100,7 +100,8 @@ public class UserResource extends ExceptionHandling {
     }
 
     @PostMapping(value = "/add", consumes = "multipart/form-data")
-    @Operation(summary = "Add new user", description = "Create a new user account (Admin only)")
+    @PreAuthorize("hasAnyAuthority('user:create')")
+    @Operation(summary = "Add new user", description = "Create a new user account (ADMIN/SUPER_ADMIN only, with role restrictions)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User created successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
@@ -122,7 +123,8 @@ public class UserResource extends ExceptionHandling {
     }
 
     @PostMapping(value = "/update", consumes = "multipart/form-data")
-    @Operation(summary = "Update user", description = "Update an existing user's information")
+    @PreAuthorize("hasAnyAuthority('user:update')")
+    @Operation(summary = "Update user", description = "Update user information (HR/MANAGER/ADMIN/SUPER_ADMIN only, with role restrictions)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User updated successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
@@ -200,6 +202,7 @@ public class UserResource extends ExceptionHandling {
     }
 
     @GetMapping("/find/{username}")
+    @PreAuthorize("hasAnyAuthority('user:read')")
     @Operation(summary = "Find user by username", description = "Retrieve user information by username")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "User found",
@@ -213,7 +216,8 @@ public class UserResource extends ExceptionHandling {
     }
 
     @GetMapping("/list")
-    @Operation(summary = "List all users", description = "Retrieve a list of all users")
+    @PreAuthorize("hasAnyAuthority('user:read')")
+    @Operation(summary = "List users", description = "Retrieve list of users (USER sees only themselves, others see all users)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Users retrieved successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class)))
@@ -238,7 +242,7 @@ public class UserResource extends ExceptionHandling {
 
     @DeleteMapping("/delete/{username}")
     @PreAuthorize("hasAnyAuthority('user:delete')")
-    @Operation(summary = "Delete user", description = "Delete a user account by username (Admin only)")
+    @Operation(summary = "Delete user", description = "Delete a user account by username (SUPER_ADMIN only)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "User deleted successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = HttpResponse.class))),

@@ -22,6 +22,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -100,6 +104,25 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public List<User> getUsers() {
+        // Check current user's permissions
+        String currentUsername = getCurrentUsername();
+        if (currentUsername == null) {
+            return new ArrayList<>(); // Return empty list if no authenticated user
+        }
+
+        User currentUser = userRepository.findUserByUsername(currentUsername);
+        if (currentUser == null) {
+            return new ArrayList<>();
+        }
+
+        Role currentUserRole = getRoleEnumName(currentUser.getRole());
+
+        // USER role can only see their own profile
+        if (currentUserRole == Role.ROLE_USER) {
+            return Collections.singletonList(currentUser);
+        }
+
+        // HR, MANAGER, ADMIN, SUPER_ADMIN can see all users
         return userRepository.findAll();
     }
 
@@ -140,6 +163,9 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public User addNewUser(String firstName, String lastName, String username, String email, String role, boolean isNonLocked, boolean isActive, MultipartFile profileImage) throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
+        // Validate create permissions
+        validateCreatePermission(role);
+
         validateNewUsernameAndEmail(StringUtils.EMPTY, username, email);
         User user = new User();
         user.setUserId(generateUserId());
@@ -166,6 +192,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     @Override
     public User updateUser(String currentUsername, String newFirstName, String newLastName, String newUsername, String newEmail, String role, boolean isNonLocked, boolean isActive, MultipartFile profileImage) throws UserNotFoundException, UsernameExistException, EmailExistException, IOException {
         User currentUser = validateNewUsernameAndEmail(currentUsername, newUsername, newEmail);
+
+        // Validate update permissions
+        validateUpdatePermission(currentUsername, role);
+
         currentUser.setFirstName(newFirstName);
         currentUser.setLastName(newLastName);
         currentUser.setUsername(newUsername);
@@ -309,6 +339,108 @@ public class UserServiceImpl implements UserService, UserDetailsService {
             // Return null if we can't get the current user
         }
         return null;
+    }
+
+    private void validateCreatePermission(String role) throws UserNotFoundException {
+        String currentUsername = getCurrentUsername();
+        if (currentUsername == null) {
+            throw new UserNotFoundException("Unable to determine current user");
+        }
+
+        User currentUser = userRepository.findUserByUsername(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Current user not found");
+        }
+
+        Role currentUserRole = getRoleEnumName(currentUser.getRole());
+        Role newUserRole = getRoleEnumName(role);
+
+        // Check if current user has create permission
+        if (!hasAuthority(currentUserRole, "user:create")) {
+            throw new UserNotFoundException("Insufficient privileges to create users");
+        }
+
+        // ADMIN cannot create SUPER_ADMIN users
+        if (currentUserRole == Role.ROLE_ADMIN && newUserRole == Role.ROLE_SUPER_ADMIN) {
+            throw new UserNotFoundException("ADMIN users cannot create SUPER_ADMIN users");
+        }
+
+        // Users cannot create users with higher roles than themselves (except SUPER_ADMIN)
+        if (currentUserRole != Role.ROLE_SUPER_ADMIN && getRoleLevel(newUserRole) > getRoleLevel(currentUserRole)) {
+            throw new UserNotFoundException("Cannot create users with higher role than yourself. Your role: " +
+                currentUserRole + ", Requested role: " + newUserRole);
+        }
+    }
+
+    private void validateUpdatePermission(String targetUsername, String newRole) throws UserNotFoundException {
+        String currentUsername = getCurrentUsername();
+        if (currentUsername == null) {
+            throw new UserNotFoundException("Unable to determine current user");
+        }
+
+        User currentUser = userRepository.findUserByUsername(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Current user not found");
+        }
+
+        Role currentUserRole = getRoleEnumName(currentUser.getRole());
+
+        // Check if current user has update permission
+        if (!hasAuthority(currentUserRole, "user:update")) {
+            throw new UserNotFoundException("Insufficient privileges to update users");
+        }
+
+        // If updating someone else (not themselves)
+        if (!currentUsername.equals(targetUsername)) {
+            // Only ADMIN and SUPER_ADMIN can update other users
+            if (getRoleLevel(currentUserRole) < getRoleLevel(Role.ROLE_ADMIN)) {
+                throw new UserNotFoundException("Only ADMIN and SUPER_ADMIN can update other users");
+            }
+
+            // ADMIN cannot promote users to SUPER_ADMIN
+            if (currentUserRole == Role.ROLE_ADMIN && getRoleEnumName(newRole) == Role.ROLE_SUPER_ADMIN) {
+                throw new UserNotFoundException("ADMIN users cannot promote users to SUPER_ADMIN");
+            }
+
+            // Cannot assign roles higher than current user's role (except SUPER_ADMIN)
+            if (currentUserRole != Role.ROLE_SUPER_ADMIN && getRoleLevel(getRoleEnumName(newRole)) > getRoleLevel(currentUserRole)) {
+                throw new UserNotFoundException("Cannot assign roles higher than your own. Your role: " +
+                    currentUserRole + ", Requested role: " + newRole);
+            }
+        } else {
+            // User updating themselves - cannot escalate privileges
+            User targetUser = userRepository.findUserByUsername(targetUsername);
+            if (targetUser != null) {
+                Role targetUserRole = getRoleEnumName(targetUser.getRole());
+                Role requestedRole = getRoleEnumName(newRole);
+
+                if (getRoleLevel(requestedRole) > getRoleLevel(targetUserRole)) {
+                    throw new UserNotFoundException("Users cannot escalate their own privileges. Current role: " +
+                        targetUserRole + ", Requested role: " + requestedRole);
+                }
+            }
+        }
+    }
+
+    private boolean hasAuthority(Role role, String authority) {
+        String[] authorities = role.getAuthorities();
+        for (String auth : authorities) {
+            if (auth.equals(authority)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int getRoleLevel(Role role) {
+        switch (role) {
+            case ROLE_USER: return 1;
+            case ROLE_HR: return 2;
+            case ROLE_MANAGER: return 3;
+            case ROLE_ADMIN: return 4;
+            case ROLE_SUPER_ADMIN: return 5;
+            default: return 0;
+        }
     }
 
 }
